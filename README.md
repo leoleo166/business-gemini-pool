@@ -219,19 +219,18 @@ python gemini.py
 
 ### 方式二：使用 docker-compose 启动服务
 
-在项目目录下使用命令启动：
+在项目目录下手动创建 business_gemini_session.json 后
 
+使用命令启动：
 
 ```bash
 docker-compose up -d
 ```
 
-> **注意**：首次启动时，如果不存在 `business_gemini_session.json`，容器会自动从 `business_gemini_session.json.example` 复制创建。
-
 ### 访问管理控制台
 
 - 直接运行：`http://127.0.0.1:8000/`
-- Docker 部署：`http://127.0.0.1:9012/`
+- Docker 部署：`http://127.0.0.1:8000/`
 
 ## API 使用示例
 

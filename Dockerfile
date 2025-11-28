@@ -12,11 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-USER appuser
-
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5)"
 
-CMD sh -c 'if [ ! -f business_gemini_session.json ]; then cp business_gemini_session.json.example business_gemini_session.json; fi && python -u gemini.py'
+CMD ["python", "-u", "gemini.py"]
