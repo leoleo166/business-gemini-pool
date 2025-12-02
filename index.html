@@ -927,7 +927,10 @@
                 <div class="form-group">
                     <label class="form-label">从JSON粘贴 (可选)</label>
                     <textarea class="form-textarea" id="refreshCookieJson" placeholder="粘贴Cookie JSON数据" rows="3"></textarea>
-                    <button class="btn btn-outline" style="margin-top: 8px;" onclick="pasteRefreshCookieJson()">📋 粘贴并解析</button>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button class="btn btn-outline btn-sm" type="button" onclick="parseRefreshCookieJson()">解析填充</button>
+                        <button class="btn btn-outline btn-sm" type="button" onclick="pasteRefreshCookieJson()">📋 粘贴并解析</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
