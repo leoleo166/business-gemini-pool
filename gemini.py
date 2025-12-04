@@ -1962,6 +1962,11 @@ def chat_history():
     """返回聊天记录页面"""
     return send_from_directory('.', 'chat_history.html')
 
+@app.route('/images')
+def image_gallery():
+    """返回图片画廊页面"""
+    return send_from_directory('.', 'image_gallery.html')
+
 @app.route('/api/accounts', methods=['GET'])
 @require_admin
 def get_accounts():
@@ -2413,6 +2418,43 @@ def get_proxy_status():
 def export_config():
     """导出配置"""
     return jsonify(account_manager.config)
+
+
+@app.route('/api/images', methods=['GET'])
+def list_images():
+    """列出缓存图片（公开，可通过 size 指定返回数量）"""
+    try:
+        size_param = int(request.args.get("size", 50))
+    except Exception:
+        return jsonify({"error": "size 参数无效"}), 400
+
+    limit = max(1, min(size_param, 1000))  # 安全上限 1000，默认 50
+    base_url = get_image_base_url(request.host_url)
+    files = []
+    allow_ext = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+    if IMAGE_CACHE_DIR.exists():
+        for path in IMAGE_CACHE_DIR.iterdir():
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in allow_ext:
+                continue
+            stat = path.stat()
+            files.append({
+                "name": path.name,
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+                "url": f"{base_url}image/{path.name}"
+            })
+
+    files.sort(key=lambda x: x["mtime"], reverse=True)
+    data = files[:limit]
+
+    return jsonify({
+        "total": len(files),
+        "limit": limit,
+        "data": data
+    })
 
 
 def print_startup_info():

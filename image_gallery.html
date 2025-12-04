@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成图片画廊</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: linear-gradient(135deg, #f5f7fb 0%, #e7ecf6 100%);
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            --radius: 14px;
+        }
+        [data-theme="dark"] {
+            --primary: #60a5fa;
+            --primary-dark: #3b82f6;
+            --bg: radial-gradient(circle at 20% 20%, #1f2937, #0b1220 60%);
+            --card: #111827;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --border: #1f2937;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 32px;
+        }
+        .shell {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .toolbar {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow);
+        }
+        button.primary {
+            background: var(--primary);
+            border-color: var(--primary-dark);
+            color: #fff;
+        }
+        button:hover { transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        .status {
+            margin: 8px 0 16px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+        }
+        .thumb-wrap {
+            position: relative;
+            background: #0b1220;
+            padding-top: 65%;
+            overflow: hidden;
+        }
+        .thumb {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        .meta {
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .name {
+            font-weight: 600;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        .muted { color: var(--muted); font-size: 12px; }
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        .actions button {
+            flex: 1;
+            box-shadow: none;
+        }
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            margin: 40px 0;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            padding: 12px 14px;
+            border-radius: 10px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .modal.show { display: flex; }
+        .dialog {
+            background: var(--card);
+            color: var(--text);
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+            width: 320px;
+            border: 1px solid var(--border);
+        }
+        .dialog h3 { margin: 0 0 12px; }
+        .dialog input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            background: var(--card);
+            color: var(--text);
+        }
+        .dialog .actions {
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="head">
+            <div class="title">生成图片画廊</div>
+            <div class="toolbar">
+                <button onclick="toggleTheme()">切换主题</button>
+                <button class="primary" onclick="refresh()" title="重新加载缩略图">刷新</button>
+            </div>
+        </div>
+        <div class="status" id="status">正在加载图片...</div>
+        <div class="grid" id="grid"></div>
+        <div class="empty" id="empty" style="display:none;">暂无图片，请先触发生图或等待缓存写入。</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = '.';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            refresh();
+        });
+
+        function initTheme() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        }
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', cur);
+            localStorage.setItem('theme', cur);
+        }
+
+        async function refresh() {
+            setStatus('正在加载图片...');
+            const size = getSizeFromQuery() || 50;
+            try {
+                const res = await fetch(`${API_BASE}/api/images?size=${size}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '加载失败');
+                renderImages(data.data || []);
+                setStatus(`共 ${data.total || 0} 张图片；已拉取 ${data.data ? data.data.length : 0} 张（size=${size}）`);
+            } catch (e) {
+                renderImages([]);
+                setStatus('加载失败: ' + e.message);
+            }
+        }
+
+        function getSizeFromQuery() {
+            const params = new URLSearchParams(location.search);
+            const size = parseInt(params.get('size') || '0', 10);
+            return Number.isFinite(size) && size > 0 ? size : null;
+        }
+
+        function renderImages(images) {
+            const grid = document.getElementById('grid');
+            const empty = document.getElementById('empty');
+            grid.innerHTML = '';
+            if (!images || images.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            const frag = document.createDocumentFragment();
+            images.forEach(img => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="thumb-wrap">
+                        <img class="thumb" src="${img.url}" alt="${img.name}">
+                    </div>
+                    <div class="meta">
+                        <div class="name" title="${img.name}">${img.name}</div>
+                        <div class="muted">${formatDate(img.mtime)} · ${formatSize(img.size)}</div>
+                        <div class="actions">
+                            <button onclick="openFull('${img.url}')">查看原图</button>
+                            <button onclick="copyLink('${img.url}')">复制链接</button>
+                        </div>
+                    </div>
+                `;
+                frag.appendChild(card);
+            });
+            grid.appendChild(frag);
+        }
+
+        function formatSize(bytes) {
+            if (!bytes && bytes !== 0) return '--';
+            if (bytes < 1024) return bytes + ' B';
+            const units = ['KB', 'MB', 'GB'];
+            let val = bytes / 1024;
+            let idx = 0;
+            while (val >= 1024 && idx < units.length - 1) {
+                val /= 1024;
+                idx++;
+            }
+            return val.toFixed(1) + ' ' + units[idx];
+        }
+
+        function formatDate(ts) {
+            if (!ts) return '--';
+            const d = new Date(ts * 1000);
+            return d.toLocaleString();
+        }
+
+        function openFull(url) {
+            window.open(url, '_blank');
+        }
+
+        async function copyLink(url) {
+            try {
+                await navigator.clipboard.writeText(url);
+                toast('链接已复制');
+            } catch (e) {
+                toast('复制失败: ' + e.message);
+            }
+        }
+
+        function setStatus(text) {
+            const el = document.getElementById('status');
+            el.textContent = text;
+        }
+
+        function toast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2400);
+        }
+    </script>
+</body>
+</html>
